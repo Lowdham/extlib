@@ -34,7 +34,7 @@ class extend_engine:
     def extend_once(self, image_tensor, img, mask):
         with torch.no_grad():
             gen = self.generator(image_tensor)
-            result = gen * mask + img * mask
+            result = gen * mask + img * (1 - mask)
             return (result + 1) * 0.5
 
     def extend_one_edge(self, tiles, mode, ratio):

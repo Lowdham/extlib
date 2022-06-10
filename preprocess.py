@@ -2,16 +2,7 @@ import numpy as np
 import torch
 from extlib.libclass import *
 from extlib.conf import *
-from extlib.models import *
 from torch.autograd import Variable
-
-
-# Load the generator
-def load_generator(filepath, device):
-    generator = Generator().to(device)
-    generator.load_state_dict(torch.load(filepath))
-    generator.eval()
-    return generator
 
 
 # We assume the height and width are already adjusted that can be divided evenly.
@@ -174,7 +165,7 @@ def paste_img(target, tiles, boxes):
     if len(tiles) != len(boxes):
         raise Exception("The length of tiles doesn't match the length of its boxes.")
 
-    fragments = arrs2img(unnormalize_images(tiles))
+    fragments = arrs2img(tiles)
 
     for idx in range(0, len(fragments)):
         fragment = fragments[idx]
