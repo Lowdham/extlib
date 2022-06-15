@@ -5,6 +5,10 @@ from extlib.conf import *
 from torch.autograd import Variable
 
 
+std = np.array([0.5, 0.5, 0.5])
+mean = np.array([1, 1, 1])
+
+
 # We assume the height and width are already adjusted that can be divided evenly.
 def divide_image(height, width, size):
     vertical_tiles_num = int(height / size)
@@ -202,55 +206,31 @@ def cut_and_cat(raw_img, mode, ratio):
     height = raw_img.shape[len(raw_img.shape) - 2]
     width = raw_img.shape[len(raw_img.shape) - 1]
 
-    if len(raw_img.shape) == 4:
-        if mode == 'up':
-            edge = int(height * ratio)
-            new_img[:, :, edge:, :] = raw_img[:, :, :height - edge, :]
+    if mode == 'up':
+        edge = int(height * ratio)
+        new_img[:, edge:, :] = raw_img[:, :height - edge, :]
 
-        if mode == 'down':
-            edge = int(height * ratio)
-            new_img[:, :, :height - edge, :] = raw_img[:, :, edge:, :]
+    if mode == 'down':
+        edge = int(height * ratio)
+        new_img[:, :height - edge, :] = raw_img[:, edge:, :]
 
-        if mode == 'left':
-            edge = int(width * ratio)
-            new_img[:, :, :, edge:] = raw_img[:, :, :, :width - edge]
+    if mode == 'left':
+        edge = int(width * ratio)
+        new_img[:, :, edge:] = raw_img[:, :, :width - edge]
 
-        if mode == 'right':
-            edge = int(width * ratio)
-            new_img[:, :, :, :width - edge] = raw_img[:, :, :, edge:]
-
-    if len(raw_img.shape) == 3:
-        if mode == 'up':
-            edge = int(height * ratio)
-            new_img[:, edge:, :] = raw_img[:, :height - edge, :]
-
-        if mode == 'down':
-            edge = int(height * ratio)
-            new_img[:, :height - edge, :] = raw_img[:, edge:, :]
-
-        if mode == 'left':
-            edge = int(width * ratio)
-            new_img[:, :, edge:] = raw_img[:, :, :width - edge]
-
-        if mode == 'right':
-            edge = int(width * ratio)
-            new_img[:, :, :width - edge] = raw_img[:, :, edge:]
+    if mode == 'right':
+        edge = int(width * ratio)
+        new_img[:, :, :width - edge] = raw_img[:, :, edge:]
 
     return new_img
 
 
 # Mask on the tiles.
-def mask_tile(tile_img, mode, ratio, device):
+def mask_tile(tile_img, mode, ratio):
     height = tile_img.shape[len(tile_img.shape) - 2]
     width = tile_img.shape[len(tile_img.shape) - 1]
 
     # Create the mask.
-    mask = create_mask(height, width, mode, ratio)
-    mask = mask[np.newaxis, :, :]
-
-    # Apply the mask.
-    img_masked = np.multiply(tile_img, mask)
-
     mask = create_mask(height, width, reverse_mode(mode), ratio)
     mask = 1 - mask
     mask = mask[np.newaxis, :, :]
@@ -259,13 +239,12 @@ def mask_tile(tile_img, mode, ratio, device):
     img = cut_and_cat(tile_img, mode, ratio)
 
     # Torch.
-    img = torch.from_numpy(img).to(device)
+    img = torch.from_numpy(img)
     mask = torch.from_numpy(mask)
     mask_one = torch.ones((height, width), dtype=torch.float64)
-    img_masked = torch.from_numpy(img_masked)
 
-    clip = torch.cat([img_masked, mask_one[None, :, :], mask]).float()
-    mask = mask.float().to(device)
-    img_tensor = Variable(clip).to(device).unsqueeze(0)
+    clip = torch.cat([img, mask_one[None, :, :], mask])
+    mask = mask
+    img_tensor = clip
 
-    return img_tensor, img, mask
+    return Variable(img_tensor), Variable(img), Variable(mask)

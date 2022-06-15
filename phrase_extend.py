@@ -8,20 +8,15 @@ class test_gen:
         self.cnt = 0
 
     def __call__(self, arg):
-        s = arg.shape[0]
-        c = arg.shape[1]
-        h = arg.shape[2]
-        w = arg.shape[3]
-        arr = np.zeros((s, 3, h, w))
-        arr[:, self.layer, :, :] = 12346
+        h = arg.shape[1]
+        w = arg.shape[2]
+        arr = np.zeros((3, h, w))
+        arr[self.layer, :, :] = self.color
+
         self.cnt = self.cnt + 1
         if self.cnt == 1024:
             self.color = self.color + 1
             self.cnt = 0
-            if self.layer == 2:
-                self.layer = 0
-            else:
-                self.layer = self.layer + 1
         return torch.from_numpy(arr).to("cpu")
 
 
@@ -34,8 +29,8 @@ class extend_engine:
     def extend_once(self, image_tensor, img, mask):
         with torch.no_grad():
             gen = self.generator(image_tensor)
-            result = gen * mask + img * (1 - mask)
-            return (result + 1) * 0.5
+            result = gen * mask + img
+            return result
 
     def extend_one_edge(self, tiles, mode, ratio):
         # Convert tiles into the numpy array.
@@ -44,8 +39,8 @@ class extend_engine:
 
         for i in range(0, int(1 / ratio)):
             for unmask_tile in old_tiles:
-                img_tensor, img, mask = mask_tile(unmask_tile, mode, ratio, self.device)
-                generated_img = self.extend_once(img_tensor, img, mask).squeeze()
+                img_tensor, img, mask = mask_tile(unmask_tile, mode, ratio)
+                generated_img = self.extend_once(img_tensor, img, mask)
                 new_tiles.append(generated_img.cpu().numpy())
 
             old_tiles = new_tiles
@@ -56,16 +51,14 @@ class extend_engine:
     def extend_corner(self, base_tile, mode, ratio):
         result_tile = normalize_image(base_tile)
         for i in range(0, int(1 / ratio)):
-            img_tensor, img, mask = mask_tile(result_tile, mode, ratio, self.device)
-            result_tile = self.extend_once(img_tensor, img, mask).squeeze().cpu().numpy()
+            img_tensor, img, mask = mask_tile(result_tile, mode, ratio)
+            result_tile = self.extend_once(img_tensor, img, mask).cpu().numpy()
 
         return unnormalize_image(result_tile)
 
     def extend_all(self, meta_img_path, tile_size, ratio, times):
         raw_img = img_open(meta_img_path)
         height, width = raw_img.size
-
-        # Check.
 
         #
         prev_img = raw_img
