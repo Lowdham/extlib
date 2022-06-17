@@ -69,7 +69,7 @@ def imgs2arr(tiles):
 
 # Convert the tiles into the numpy array.
 def arr2img(tiles_arr):
-    img = Image.fromarray(tiles_arr.transpose(1, 2, 0).astype('uint8'), mode='RGB')
+    img = Image.fromarray(tiles_arr.transpose(1, 2, 0).astype('uint8'))
     return img
 
 
@@ -182,27 +182,26 @@ def create_mask(height, width, mode, ratio):
     mask = np.zeros((height, width))
 
     if mode == 'up':
-        edge = int(height * (1 - ratio))
-        mask[:edge, :] = 1
-
-    if mode == 'down':
         edge = int(height * ratio)
         mask[edge:, :] = 1
 
-    if mode == 'left':
-        edge = int(width * (1 - ratio))
-        mask[:, :edge] = 1
+    if mode == 'down':
+        edge = int(height * (1 - ratio))
+        mask[:edge, :] = 1
 
-    if mode == 'right':
+    if mode == 'left':
         edge = int(width * ratio)
         mask[:, edge:] = 1
+
+    if mode == 'right':
+        edge = int(width * (1 - ratio))
+        mask[:, :edge] = 1
 
     return mask
 
 
 # Auto cut and cat the raw image to a new image.
 def cut_and_cat(raw_img, mode, ratio):
-    print(raw_img.shape)
     new_img = np.zeros(raw_img.shape)
     height = raw_img.shape[len(raw_img.shape) - 2]
     width = raw_img.shape[len(raw_img.shape) - 1]
@@ -232,12 +231,13 @@ def mask_tile(tile_img, mode, ratio, device):
     width = tile_img.shape[len(tile_img.shape) - 1]
 
     # Create the mask.
-    mask = create_mask(height, width, reverse_mode(mode), ratio)
+    mask = create_mask(height, width, mode, ratio)
     mask = 1 - mask
     mask = mask[np.newaxis, :, :]
 
     # Cut and cat.
     img = cut_and_cat(tile_img, mode, ratio)
+    img = tile_img * (1 - mask)
 
     # Torch.
     img = torch.from_numpy(img)
@@ -245,9 +245,8 @@ def mask_tile(tile_img, mode, ratio, device):
     mask_one = torch.ones((height, width), dtype=torch.float64)
 
     clip = torch.cat([img, mask_one[None, :, :], mask]).float()
-    mask = mask
-    img_tensor = clip
+    mask = mask.float().to(device)
 
-    return Variable(img_tensor).to(device).unsqueeze(0), \
+    return Variable(clip).to(device).unsqueeze(0), \
            Variable(img).to(device),\
            Variable(mask).to(device)
