@@ -41,7 +41,7 @@ class extend_engine:
             for unmask_tile in old_tiles:
                 img_tensor, img, mask = mask_tile(unmask_tile, mode, ratio, self.device)
                 generated_img = self.extend_once(img_tensor, img, mask)
-                new_tiles.append(generated_img.cpu().numpy())
+                new_tiles.append(generated_img.squeeze().cpu().numpy())
 
             old_tiles = new_tiles
             new_tiles = []
@@ -52,7 +52,7 @@ class extend_engine:
         result_tile = normalize_image(base_tile)
         for i in range(0, int(1 / ratio)):
             img_tensor, img, mask = mask_tile(result_tile, mode, ratio, self.device)
-            result_tile = self.extend_once(img_tensor, img, mask).cpu().numpy()
+            result_tile = self.extend_once(img_tensor, img, mask).squeeze().cpu().numpy()
 
         return unnormalize_image(result_tile)
 

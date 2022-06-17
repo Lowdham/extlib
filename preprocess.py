@@ -202,43 +202,26 @@ def create_mask(height, width, mode, ratio):
 
 # Auto cut and cat the raw image to a new image.
 def cut_and_cat(raw_img, mode, ratio):
+    print(raw_img.shape)
     new_img = np.zeros(raw_img.shape)
     height = raw_img.shape[len(raw_img.shape) - 2]
     width = raw_img.shape[len(raw_img.shape) - 1]
 
-    if len(raw_img.shape) == 4:
-        if mode == 'up':
-            edge = int(height * ratio)
-            new_img[:, :, edge:, :] = raw_img[:, :, :height - edge, :]
+    if mode == 'up':
+        edge = int(height * ratio)
+        new_img[:, edge:, :] = raw_img[:, :height - edge, :]
 
-        if mode == 'down':
-            edge = int(height * ratio)
-            new_img[:, :, :height - edge, :] = raw_img[:, :, edge:, :]
+    if mode == 'down':
+        edge = int(height * ratio)
+        new_img[:, :height - edge, :] = raw_img[:, edge:, :]
 
-        if mode == 'left':
-            edge = int(width * ratio)
-            new_img[:, :, :, edge:] = raw_img[:, :, :, :width - edge]
+    if mode == 'left':
+        edge = int(width * ratio)
+        new_img[:, :, edge:] = raw_img[:, :, :width - edge]
 
-        if mode == 'right':
-            edge = int(width * ratio)
-            new_img[:, :, :, :width - edge] = raw_img[:, :, :, edge:]
-
-    if len(raw_img.shape) == 3:
-        if mode == 'up':
-            edge = int(height * ratio)
-            new_img[:, edge:, :] = raw_img[:, :height - edge, :]
-
-        if mode == 'down':
-            edge = int(height * ratio)
-            new_img[:, :height - edge, :] = raw_img[:, edge:, :]
-
-        if mode == 'left':
-            edge = int(width * ratio)
-            new_img[:, :, edge:] = raw_img[:, :, :width - edge]
-
-        if mode == 'right':
-            edge = int(width * ratio)
-            new_img[:, :, :width - edge] = raw_img[:, :, edge:]
+    if mode == 'right':
+        edge = int(width * ratio)
+        new_img[:, :, :width - edge] = raw_img[:, :, edge:]
 
     return new_img
 
@@ -261,12 +244,10 @@ def mask_tile(tile_img, mode, ratio, device):
     mask = torch.from_numpy(mask)
     mask_one = torch.ones((height, width), dtype=torch.float64)
 
-    clip = torch.cat([img, mask_one[None, :, :], mask])
+    clip = torch.cat([img, mask_one[None, :, :], mask]).float()
     mask = mask
     img_tensor = clip
 
-    Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
-
-    return Variable(img_tensor.type(Tensor)).to(device).unsqueeze(0), \
-           Variable(img.type(Tensor)).to(device),\
-           Variable(mask.type(Tensor)).to(device)
+    return Variable(img_tensor).to(device).unsqueeze(0), \
+           Variable(img).to(device),\
+           Variable(mask).to(device)
