@@ -39,7 +39,7 @@ class extend_engine:
 
         for i in range(0, int(1 / ratio)):
             for unmask_tile in old_tiles:
-                img_tensor, img, mask = mask_tile(unmask_tile, mode, ratio)
+                img_tensor, img, mask = mask_tile(unmask_tile, mode, ratio, self.device)
                 generated_img = self.extend_once(img_tensor, img, mask)
                 new_tiles.append(generated_img.cpu().numpy())
 
@@ -51,7 +51,7 @@ class extend_engine:
     def extend_corner(self, base_tile, mode, ratio):
         result_tile = normalize_image(base_tile)
         for i in range(0, int(1 / ratio)):
-            img_tensor, img, mask = mask_tile(result_tile, mode, ratio)
+            img_tensor, img, mask = mask_tile(result_tile, mode, ratio, self.device)
             result_tile = self.extend_once(img_tensor, img, mask).cpu().numpy()
 
         return unnormalize_image(result_tile)

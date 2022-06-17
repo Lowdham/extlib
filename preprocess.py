@@ -206,27 +206,45 @@ def cut_and_cat(raw_img, mode, ratio):
     height = raw_img.shape[len(raw_img.shape) - 2]
     width = raw_img.shape[len(raw_img.shape) - 1]
 
-    if mode == 'up':
-        edge = int(height * ratio)
-        new_img[:, edge:, :] = raw_img[:, :height - edge, :]
+    if len(raw_img.shape) == 4:
+        if mode == 'up':
+            edge = int(height * ratio)
+            new_img[:, :, edge:, :] = raw_img[:, :, :height - edge, :]
 
-    if mode == 'down':
-        edge = int(height * ratio)
-        new_img[:, :height - edge, :] = raw_img[:, edge:, :]
+        if mode == 'down':
+            edge = int(height * ratio)
+            new_img[:, :, :height - edge, :] = raw_img[:, :, edge:, :]
 
-    if mode == 'left':
-        edge = int(width * ratio)
-        new_img[:, :, edge:] = raw_img[:, :, :width - edge]
+        if mode == 'left':
+            edge = int(width * ratio)
+            new_img[:, :, :, edge:] = raw_img[:, :, :, :width - edge]
 
-    if mode == 'right':
-        edge = int(width * ratio)
-        new_img[:, :, :width - edge] = raw_img[:, :, edge:]
+        if mode == 'right':
+            edge = int(width * ratio)
+            new_img[:, :, :, :width - edge] = raw_img[:, :, :, edge:]
+
+    if len(raw_img.shape) == 3:
+        if mode == 'up':
+            edge = int(height * ratio)
+            new_img[:, edge:, :] = raw_img[:, :height - edge, :]
+
+        if mode == 'down':
+            edge = int(height * ratio)
+            new_img[:, :height - edge, :] = raw_img[:, edge:, :]
+
+        if mode == 'left':
+            edge = int(width * ratio)
+            new_img[:, :, edge:] = raw_img[:, :, :width - edge]
+
+        if mode == 'right':
+            edge = int(width * ratio)
+            new_img[:, :, :width - edge] = raw_img[:, :, edge:]
 
     return new_img
 
 
 # Mask on the tiles.
-def mask_tile(tile_img, mode, ratio):
+def mask_tile(tile_img, mode, ratio, device):
     height = tile_img.shape[len(tile_img.shape) - 2]
     width = tile_img.shape[len(tile_img.shape) - 1]
 
@@ -247,4 +265,8 @@ def mask_tile(tile_img, mode, ratio):
     mask = mask
     img_tensor = clip
 
-    return Variable(img_tensor), Variable(img), Variable(mask)
+    Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
+
+    return Variable(img_tensor.type(Tensor)).to(device).unsqueeze(0), \
+           Variable(img.type(Tensor)).to(device),\
+           Variable(mask.type(Tensor)).to(device)
