@@ -237,7 +237,6 @@ def mask_tile(tile_img, mode, ratio, device):
 
     # Cut and cat.
     img = cut_and_cat(tile_img, mode, ratio)
-    img = tile_img * (1 - mask)
 
     # Torch.
     img = torch.from_numpy(img)
