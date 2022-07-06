@@ -109,6 +109,60 @@ def unnormalize_images(tiles):
     return result
 
 
+# Rotate the array
+def _rot2right(mode, arr):
+    res = arr
+    if mode == "up":
+        for i in range(0, 3):
+            res[i] = arr[i][::-1].T
+        return res
+    if mode == "down":
+        for i in range(0, 3):
+            res[i] = arr[i][:, ::-1].T
+        return res
+    if mode == "left":
+        for i in range(0, 3):
+            res[i] = arr[i][::-1][:, ::-1]
+        return res
+    if mode == "right":
+        return res
+
+
+# Rotate the arrays
+def rot2right(mode, arrs):
+    ans = []
+    for arr in arrs:
+        ans.append(_rot2right(mode, arr))
+    return ans
+
+
+# Rotate the array
+def _reverse_rot2right(mode, arr):
+    res = arr
+    if mode == "up":
+        for i in range(0, 3):
+            res[i] = arr[i][:, ::-1].T
+        return res
+    if mode == "down":
+        for i in range(0, 3):
+            res[i] = arr[i][::-1].T
+        return res
+    if mode == "left":
+        for i in range(0, 3):
+            res[i] = arr[i][::-1][:, ::-1]
+        return res
+    if mode == "right":
+        return res
+
+
+# Rotate the arrays
+def reverse_rot2right(mode, arrs):
+    ans = []
+    for arr in arrs:
+        ans.append(_reverse_rot2right(mode, arr))
+    return ans
+
+
 # Reverse the mode
 def reverse_mode(mode):
     if mode == 'up':

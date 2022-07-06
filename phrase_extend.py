@@ -34,27 +34,27 @@ class extend_engine:
 
     def extend_one_edge(self, tiles, mode, ratio):
         # Convert tiles into the numpy array.
-        old_tiles = normalize_images(tiles)
+        old_tiles = rot2right(mode, normalize_images(tiles))
         new_tiles = []
 
         for i in range(0, int(1 / ratio)):
             for unmask_tile in old_tiles:
-                img_tensor, img, mask = mask_tile(unmask_tile, mode, ratio, self.device)
+                img_tensor, img, mask = mask_tile(unmask_tile, "right", ratio, self.device)
                 generated_img = self.extend_once(img_tensor, img, mask)
                 new_tiles.append(generated_img.squeeze().cpu().numpy())
 
             old_tiles = new_tiles
             new_tiles = []
 
-        return unnormalize_images(old_tiles)
+        return reverse_rot2right(mode, unnormalize_images(old_tiles))
 
     def extend_corner(self, base_tile, mode, ratio):
-        result_tile = normalize_image(base_tile)
+        result_tile = rot2right(mode, [normalize_image(base_tile)])[0]
         for i in range(0, int(1 / ratio)):
-            img_tensor, img, mask = mask_tile(result_tile, mode, ratio, self.device)
+            img_tensor, img, mask = mask_tile(result_tile, 'right', ratio, self.device)
             result_tile = self.extend_once(img_tensor, img, mask).squeeze().cpu().numpy()
 
-        return unnormalize_image(result_tile)
+        return reverse_rot2right(mode, [unnormalize_image(result_tile)])[0]
 
     def extend_all(self, meta_img_path, tile_size, ratio, times):
         raw_img = img_open(meta_img_path)
