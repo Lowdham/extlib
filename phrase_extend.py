@@ -1,6 +1,5 @@
 from extlib.preprocess import *
 
-
 class test_gen:
     def __init__(self):
         self.color = 0
@@ -58,7 +57,7 @@ class extend_engine:
 
     def extend_all(self, meta_img_path, tile_size, ratio, times):
         raw_img = img_open(meta_img_path)
-        height, width = raw_img.size
+        width, height = raw_img.size
 
         #
         prev_img = raw_img
@@ -105,7 +104,7 @@ class extend_engine:
                           'right_tiles': shift_box(tile_boxes['right_tiles'], tile_size, 'right')}
 
             # Merge into a new image.
-            prev_height, prev_width = prev_img.size
+            prev_width, prev_height = prev_img.size
             prev_img_box = (tile_boxes['up_tiles'][0].dr_pnt.x,
                             tile_boxes['up_tiles'][0].dr_pnt.y,
                             tile_boxes['up_tiles'][0].dr_pnt.x + prev_width,
@@ -124,3 +123,43 @@ class extend_engine:
 
         return new_img
 
+    def extend_all_v2(self, meta_img_path, tile_size, ratio, times):
+        raw_img = img_open(meta_img_path)
+        width, height = raw_img.size
+
+        #
+        prev_img = raw_img
+        new_img = prev_img
+
+        # Prepare the images.
+        tile_boxes = divide_image(height, width, tile_size)
+        left_tile_arrs = imgs2arr(cut_image(raw_img, tile_boxes['left_tiles']))
+        right_tile_arrs = imgs2arr(cut_image(raw_img, tile_boxes['right_tiles']))
+        print(len(tile_boxes['left_tiles']))
+
+        # Extend the left and right side.
+        for i in range(0, times):
+            # First, extend all edges.
+            left_tile_arrs = self.extend_one_edge(left_tile_arrs, 'left', ratio)
+            right_tile_arrs = self.extend_one_edge(right_tile_arrs, 'right', ratio)
+
+            # Recompute the boxes
+            tmp_box = shift_box(tile_boxes['right_tiles'], tile_size, 'right')
+            tmp_box.pop()
+            tmp_box.pop()
+            tile_boxes = {'left_tiles': tile_boxes['left_tiles'],
+                          'right_tiles': tmp_box}
+
+            # Merge into a new image.
+            prev_height, prev_width = prev_img.size
+            prev_img_box = (tile_size, 0, tile_size + prev_height, prev_width)
+            new_img = Image.new(mode='RGB', size=(prev_height + 2 * tile_size, prev_width))
+            paste_img(new_img, left_tile_arrs, tile_boxes['left_tiles'])
+            paste_img(new_img, right_tile_arrs, tile_boxes['right_tiles'])
+            new_img.paste(prev_img, prev_img_box)
+
+            prev_img = new_img
+
+            print("Iteration " + str(i) + " Complete.")
+
+        return new_img
