@@ -1,6 +1,7 @@
 from extlib.preprocess import *
 
-class test_gen:
+
+class TestGen:
     def __init__(self):
         self.color = 0
         self.layer = 0
@@ -20,9 +21,10 @@ class test_gen:
 
 
 #
-class extend_engine:
-    def __init__(self, generator, device):
+class ExtendEngine:
+    def __init__(self, generator, mask_module, device):
         self.generator = generator
+        self.mask_module = mask_module
         self.device = device
 
     def extend_once(self, image_tensor, img, mask):
@@ -38,7 +40,7 @@ class extend_engine:
 
         for i in range(0, int(1 / ratio)):
             for unmask_tile in old_tiles:
-                img_tensor, img, mask = mask_tile(unmask_tile, "right", ratio, self.device)
+                img_tensor, img, mask = self.mask_module.mask(unmask_tile, "right", ratio, self.device)
                 generated_img = self.extend_once(img_tensor, img, mask)
                 new_tiles.append(generated_img.squeeze().cpu().numpy())
 
@@ -50,7 +52,7 @@ class extend_engine:
     def extend_corner(self, base_tile, mode, ratio):
         result_tile = rot2right(mode, [normalize_image(base_tile)])[0]
         for i in range(0, int(1 / ratio)):
-            img_tensor, img, mask = mask_tile(result_tile, 'right', ratio, self.device)
+            img_tensor, img, mask = self.mask_module.mask(result_tile, 'right', ratio, self.device)
             result_tile = self.extend_once(img_tensor, img, mask).squeeze().cpu().numpy()
 
         return reverse_rot2right(mode, [unnormalize_image(result_tile)])[0]
@@ -135,7 +137,6 @@ class extend_engine:
         tile_boxes = divide_image(height, width, tile_size)
         left_tile_arrs = imgs2arr(cut_image(raw_img, tile_boxes['left_tiles']))
         right_tile_arrs = imgs2arr(cut_image(raw_img, tile_boxes['right_tiles']))
-        print(len(tile_boxes['left_tiles']))
 
         # Extend the left and right side.
         for i in range(0, times):
@@ -163,3 +164,25 @@ class extend_engine:
             print("Iteration " + str(i) + " Complete.")
 
         return new_img
+
+    def extend_all_v3(self, meta_img_path, tile_size, ratio, times):
+        raw_img = img_open(meta_img_path)
+        width, height = raw_img.size
+
+        #
+        prev_img = raw_img
+        new_img = prev_img
+
+        # Prepare the images.
+        tile_boxes = divide_image(height, width, tile_size)
+        up_tile_arrs = imgs2arr(cut_image(raw_img, tile_boxes['up_tiles']))
+        down_tile_arrs = imgs2arr(cut_image(raw_img, tile_boxes['down_tiles']))
+        left_tile_arrs = imgs2arr(cut_image(raw_img, tile_boxes['left_tiles']))
+        right_tile_arrs = imgs2arr(cut_image(raw_img, tile_boxes['right_tiles']))
+
+        # Extend.
+        for i in range(0, times):
+            # Extend upper tiles.
+            up_first_tile = self.extend_corner(up_tile_arrs[0], 'up', ratio)
+
+
