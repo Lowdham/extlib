@@ -1,4 +1,5 @@
 from extlib.preprocess import *
+from extlib.function_module import QuarterScanningModule, EdgeExtendedMaskModule
 
 
 class TestGen:
@@ -22,14 +23,20 @@ class TestGen:
 
 #
 class ExtendEngine:
-    def __init__(self, generator, mask_module, device):
-        self.generator = generator
-        self.mask_module = mask_module
+    def __init__(self, e_generator, q_generator, device):
+        self.e_generator = e_generator
+        self.q_generator = q_generator
         self.device = device
 
-    def extend_once(self, image_tensor, img, mask):
+    def extend_once_e(self, image_tensor, img, mask):
         with torch.no_grad():
-            gen = self.generator(image_tensor)
+            gen = self.e_generator(image_tensor)
+            result = gen * mask + img
+            return result
+
+    def extend_once_q(self, image_tensor, img, mask):
+        with torch.no_grad():
+            gen = self.q_generator(image_tensor)
             result = gen * mask + img
             return result
 
@@ -40,8 +47,8 @@ class ExtendEngine:
 
         for i in range(0, int(1 / ratio)):
             for unmask_tile in old_tiles:
-                img_tensor, img, mask = self.mask_module.mask(unmask_tile, "right", ratio, self.device)
-                generated_img = self.extend_once(img_tensor, img, mask)
+                img_tensor, img, mask = EdgeExtendedMaskModule().mask(unmask_tile, "right", ratio, self.device)
+                generated_img = self.extend_once_e(img_tensor, img, mask)
                 new_tiles.append(generated_img.squeeze().cpu().numpy())
 
             old_tiles = new_tiles
@@ -49,11 +56,56 @@ class ExtendEngine:
 
         return reverse_rot2right(mode, unnormalize_images(old_tiles))
 
+    def extend_one_edge_v2(self, raw_img, ext_img, tile_size, mode, boxes):
+        # Initialize the workspace.
+        width, height = raw_img.size
+        vw = width
+        vh = height
+        paste_box = None
+        ext_box = None
+        fragment = None
+        if mode == 'up':
+            vh = int(2 * tile_size)
+            paste_box = (0, tile_size, width, 2 * tile_size)
+            ext_box = (0, 0, tile_size, tile_size)
+            fragment = img_cut(raw_img, (0, 0, width, tile_size))
+        if mode == 'down':
+            vh = int(2 * tile_size)
+            paste_box = (0, 0, width, tile_size)
+            ext_box = (vw - tile_size, tile_size, vw, vh)
+            fragment = img_cut(raw_img, (0, height - tile_size, width, height))
+        if mode == 'left':
+            vw = int(2 * tile_size)
+            paste_box = (tile_size, 0, 2 * tile_size, height)
+            ext_box = (0, vh - tile_size, tile_size, vh)
+            fragment = img_cut(raw_img, (0, 0, tile_size, height))
+        if mode == 'right':
+            vw = int(2 * tile_size)
+            paste_box = (0, 0, tile_size, height)
+            ext_box = (tile_size, 0, vw, tile_size)
+            fragment = img_cut(raw_img, (width - tile_size, 0, width, height))
+        workspace_img = Image.new(mode='RGB', size=(vh, vw))
+
+        # Paste the original image to the workspace.
+        workspace_img.paste(fragment, paste_box)
+
+        # Paste the extended image to the workspace.
+        workspace_img.paste(ext_img, ext_box)
+
+        # Extend the Image quarter by quarter.
+        qsm = QuarterScanningModule(workspace_img, tile_size, mode, vw, vh)
+        qsm.extend(self.extend_once_q, 0.25, self.device)
+
+        # Get the extension result.
+        workspace_img = qsm.get_workspace()
+        workspace_img.show()
+        return imgs2arr(cut_image(workspace_img, boxes))
+
     def extend_corner(self, base_tile, mode, ratio):
         result_tile = rot2right(mode, [normalize_image(base_tile)])[0]
         for i in range(0, int(1 / ratio)):
-            img_tensor, img, mask = self.mask_module.mask(result_tile, 'right', ratio, self.device)
-            result_tile = self.extend_once(img_tensor, img, mask).squeeze().cpu().numpy()
+            img_tensor, img, mask = EdgeExtendedMaskModule().mask(result_tile, 'right', ratio, self.device)
+            result_tile = self.extend_once_e(img_tensor, img, mask).squeeze().cpu().numpy()
 
         return reverse_rot2right(mode, [unnormalize_image(result_tile)])[0]
 
@@ -184,5 +236,6 @@ class ExtendEngine:
         for i in range(0, times):
             # Extend upper tiles.
             up_first_tile = self.extend_corner(up_tile_arrs[0], 'up', ratio)
+            up_tile_arrs = self.extend_one_edge_v2(prev_img, up_first_tile, 256, 'up', tile_boxes['up_tiles'])
 
 
