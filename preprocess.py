@@ -255,13 +255,11 @@ def create_mask(height, width, mode, ratio):
 
 
 # Create the mask according to the mode and ratio (default implement is based on normal RGB image)
-def create_quarter_mask(height, width, mode, ratio):
+def create_quarter_mask(height, width, ratio):
     mask = np.zeros((height, width))
 
-    if mode == 'ur':
-        h_edge = int(height * ratio)
-        v_edge = int(width * (1 - ratio))
-        mask[:h_edge, v_edge:] = 1
+    edge = int(height * ratio)
+    mask[:edge, -edge:] = 1
 
     return mask
 

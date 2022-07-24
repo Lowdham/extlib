@@ -84,13 +84,13 @@ class ExtendEngine:
             paste_box = (0, 0, tile_size, height)
             ext_box = (tile_size, 0, vw, tile_size)
             fragment = img_cut(raw_img, (width - tile_size, 0, width, height))
-        workspace_img = Image.new(mode='RGB', size=(vh, vw))
+        workspace_img = Image.new(mode='RGB', size=(vw, vh))
 
         # Paste the original image to the workspace.
         workspace_img.paste(fragment, paste_box)
 
         # Paste the extended image to the workspace.
-        workspace_img.paste(ext_img, ext_box)
+        workspace_img.paste(arr2img(ext_img), ext_box)
 
         # Extend the Image quarter by quarter.
         qsm = QuarterScanningModule(workspace_img, tile_size, mode, vw, vh)

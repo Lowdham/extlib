@@ -41,12 +41,12 @@ class QuarterExtendedMaskModule(MaskModule):
         width = tile_img.shape[len(tile_img.shape) - 1]
 
         # Create the mask.
-        mask = create_quarter_mask(height, width, mode, ratio)
-        mask = 1 - mask
+        mask = create_quarter_mask(height, width, ratio)
         mask = mask[np.newaxis, :, :]
 
         # To pytorch data structure.
-        img = torch.from_numpy(tile_img)
+        img_masked = tile_img * (1 - mask)
+        img = torch.from_numpy(img_masked)
         mask = torch.from_numpy(mask)
         mask_one = torch.ones((height, width), dtype=torch.float64)
 
@@ -209,7 +209,6 @@ class QuarterScanningModule:
         fragment = self.scanning_module.rot(normalize_image(img2arr(img_cut(self.workspace, box))))
         img_tensor, img, mask = QuarterExtendedMaskModule().mask(fragment, "ur", ratio, device)
         generated_img = unnormalize_image(extend_once(img_tensor, img, mask).squeeze().cpu().numpy())
-
         # Paste back to the workspace.
         self.workspace.paste(arr2img(self.scanning_module.rrot(generated_img)), box)
 
